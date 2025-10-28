@@ -1,6 +1,6 @@
 from langchain_community.document_loaders import SitemapLoader
 from langchain_core.runnables import RunnableLambda, RunnablePassthrough
-from langchain_text_splitters import RecursiveCharacterTextSplitter 
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import FAISS
 from langchain_openai import OpenAIEmbeddings
 from langchain_openai import ChatOpenAI
@@ -77,7 +77,7 @@ def load_cloudflare_docs(api_key):
     Cloudflare AI 제품군(AI Gateway, Vectorize, Workers AI)의 문서를 로드하고
     FAISS 벡터 저장소로 변환하여 리트리버를 반환합니다.
     """
-    splitter = RecursiveCharacterTextSplitter.from_tiktoken_encoder( # 이 함수는 이제 import가 올바르게 작동합니다.
+    splitter = RecursiveCharacterTextSplitter.from_tiktoken_encoder( 
         chunk_size=1000,
         chunk_overlap=200,
     )
@@ -98,10 +98,22 @@ def load_cloudflare_docs(api_key):
     loader.requests_per_second = 2
     
     docs = loader.load_and_split(text_splitter=splitter)
+
+    # docs 리스트에서 page_content가 비어 있거나 공백만 있는 문서를 제거합니다.
+    filtered_docs = [doc for doc in docs if doc.page_content and doc.page_content.strip()]
+    
+    if not filtered_docs:
+        # 필터링 후 문서가 하나도 없으면 오류를 발생시키고 앱을 중지합니다.
+        st.error("문서를 로드하거나 파싱할 수 없습니다. 사이트맵 URL을 확인하거나 나중에 다시 시도하세요.")
+        st.stop()
+    # --- 오류 수정 완료 ---
+
     
     # OpenAI 임베딩 및 FAISS 벡터 저장소 생성 (API 키 사용)
     embeddings = OpenAIEmbeddings(openai_api_key=api_key)
-    vector_store = FAISS.from_documents(docs, embeddings)
+    
+    # 필터링된 'filtered_docs' 리스트를 사용하여 벡터 저장소를 생성합니다.
+    vector_store = FAISS.from_documents(filtered_docs, embeddings) 
     return vector_store.as_retriever()
 
 # Streamlit 앱 설정
@@ -132,7 +144,7 @@ with st.sidebar:
     # 깃허브 링크
     st.markdown(
         "--- \n"
-        "[View on GitHub](https://github.com/jj-prog3/streamlit-site)" 
+        "[View on GitHub](https://github.com/YOUR_USERNAME/YOUR_REPO)" # TODO: 실제 깃허브 레포지토리 주소로 변경하세요.
     )
 
 # API 키가 입력되었을 때만 앱 로직 실행
@@ -182,26 +194,34 @@ if api_key:
         )
 
     # 4. 문서 로드 (캐시됨)
-    retriever = load_cloudflare_docs(api_key)
-
-    # 5. 사용자 질문 입력
-    query = st.text_input("Cloudflare AI 문서에 대해 질문하세요:")
-
-    if query:
-        # 6. LangChain 체인 설정
-        chain = (
-            {
-                "docs": retriever,
-                "question": RunnablePassthrough(),
-            }
-            | RunnableLambda(get_answers)
-            | RunnableLambda(choose_answer)
-        )
+    try:
+        retriever = load_cloudflare_docs(api_key)
         
-        # 7. 체인 실행 및 결과 표시
-        with st.spinner("답변을 생성 중입니다..."):
-            result = chain.invoke(query)
-            st.markdown(result.content.replace("$", "\$"))
+        # 5. 사용자 질문 입력
+        query = st.text_input("Cloudflare AI 문서에 대해 질문하세요:")
+
+        if query:
+            # 6. LangChain 체인 설정
+            chain = (
+                {
+                    "docs": retriever,
+                    "question": RunnablePassthrough(),
+                }
+                | RunnableLambda(get_answers)
+                | RunnableLambda(choose_answer)
+            )
+            
+            # 7. 체인 실행 및 결과 표시
+            with st.spinner("답변을 생성 중입니다..."):
+                result = chain.invoke(query)
+                st.markdown(result.content.replace("$", "\$"))
+
+    except Exception as e:
+        # load_cloudflare_docs에서 st.stop()이 호출되면 이 코드는 실행되지 않을 수 있지만,
+        # 임베딩 생성 중 다른 예외 발생 시를 대비해 처리합니다.
+        st.error(f"문서를 로드하거나 처리하는 중 오류가 발생했습니다: {e}")
+        st.warning("API 키가 유효한지, 크레딧이 남아있는지 확인하세요.")
+
 
 # API 키가 입력되지 않았을 경우 안내 메시지
 else:
