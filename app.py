@@ -8,6 +8,15 @@ from langchain_core.prompts import ChatPromptTemplate
 import streamlit as st
 import os
 
+# --- 캐시 구현 ---
+# 1. 세션 상태에 쿼리 캐시 및 API 키 저장소 초기화
+if "query_cache" not in st.session_state:
+    st.session_state.query_cache = {}
+if "cached_api_key" not in st.session_state:
+    st.session_state.cached_api_key = None
+# --- 캐시 구현 완료 ---
+
+
 # 프롬프트 템플릿 정의
 answers_prompt = ChatPromptTemplate.from_template(
     """
@@ -71,12 +80,8 @@ def parse_page(soup):
     )
 
 # Cloudflare AI 문서 로드 및 색인 생성 함수
-# --- 결정적인 수정 ---
-# 이 데코레이터가 @st.cache_data가 아닌 @st.cache_resource여야 합니다.
-# VectorStoreRetriever는 직렬화(serialize)할 수 없는 "리소스"입니다.
 @st.cache_resource(show_spinner="Cloudflare AI 문서 로드 중...")
 def load_cloudflare_docs(api_key):
-# --- 수정 완료 ---
     """
     Cloudflare AI 제품군(AI Gateway, Vectorize, Workers AI)의 문서를 로드하고
     FAISS 벡터 저장소로 변환하여 리트리버를 반환합니다.
@@ -87,11 +92,11 @@ def load_cloudflare_docs(api_key):
     )
     
     # Cloudflare 개발자 문서 sitemap 및 AI 제품 필터
-    sitemap_url = "https://developers.cloudflare.com/sitemap.xml"
+    sitemap_url = "https.developers.cloudflare.com/sitemap.xml"
     filter_urls = [
-        "https://developers.cloudflare.com/ai-gateway/",
-        "https://developers.cloudflare.com/vectorize/",
-        "https://developers.cloudflare.com/workers-ai/",
+        "https.developers.cloudflare.com/ai-gateway/",
+        "https.developers.cloudflare.com/vectorize/",
+        "https.developers.cloudflare.com/workers-ai/",
     ]
 
     loader = SitemapLoader(
@@ -110,14 +115,11 @@ def load_cloudflare_docs(api_key):
         st.error("문서를 로드하거나 파싱할 수 없습니다. 사이트맵 URL을 확인하거나 나중에 다시 시도하세요.")
         st.stop()
     
-    # --- 오류 수정 (토큰 한도 초과) ---
-    # chunk_size는 한 번에 API로 보내는 *문서의 수*입니다.
-    # 1000개 문서는 토큰 한도를 초과하므로, 100개로 대폭 줄입니다.
+    # OpenAI 임베딩 설정 (토큰 한도 초과 오류 방지)
     embeddings = OpenAIEmbeddings(
         openai_api_key=api_key,
         chunk_size=100  # 1000개에서 100개로 변경
     )
-    # --- 오류 수정 완료 ---
     
     # 벡터 저장소 생성
     vector_store = FAISS.from_documents(filtered_docs, embeddings) 
@@ -151,11 +153,19 @@ with st.sidebar:
     # 깃허브 링크
     st.markdown(
         "--- \n"
-        "[View on GitHub](https://github.com/jj-prog3/streamlit-site)" 
+        "[View on GitHub](https.github.com/jj-prog3/streamlit-site)" 
     )
 
 # API 키가 입력되었을 때만 앱 로직 실행
 if api_key:
+    # --- 캐시 구현 ---
+    # 2. API 키가 변경되었는지 확인하고, 변경되었다면 캐시 초기화
+    if api_key != st.session_state.cached_api_key:
+        st.toast("API 키가 변경되어 답변 캐시를 초기화합니다.")
+        st.session_state.query_cache = {}
+        st.session_state.cached_api_key = api_key
+    # --- 캐시 구현 완료 ---
+    
     # 1. API 키를 사용하여 LLM 모델 초기화
     llm = ChatOpenAI(
         temperature=0.1,
@@ -209,20 +219,33 @@ if api_key:
         query = st.text_input("Cloudflare AI 문서에 대해 질문하세요:")
 
         if query:
-            # 6. LangChain 체인 설정
-            chain = (
-                {
-                    "docs": retriever,
-                    "question": RunnablePassthrough(),
-                }
-                | RunnableLambda(get_answers)
-                | RunnableLambda(choose_answer)
-            )
-            
-            # 7. 체인 실행 및 결과 표시
-            with st.spinner("답변을 생성 중입니다..."):
-                result = chain.invoke(query)
-                st.markdown(result.content.replace("$", "\$"))
+            # --- 캐시 구현 ---
+            # 3. 캐시에 질문이 있는지 확인
+            if query in st.session_state.query_cache:
+                st.info("캐시된 답변을 불러왔습니다.")
+                result_content = st.session_state.query_cache[query]
+                st.markdown(result_content.replace("$", "\$"))
+            else:
+                # 4. 캐시 미스 (Cache Miss): 체인 실행
+                chain = (
+                    {
+                        "docs": retriever,
+                        "question": RunnablePassthrough(),
+                    }
+                    | RunnableLambda(get_answers)
+                    | RunnableLambda(choose_answer)
+                )
+                
+                # 7. 체인 실행 및 결과 표시
+                with st.spinner("답변을 생성 중입니다..."):
+                    result = chain.invoke(query)
+                    result_content = result.content
+                    
+                    # 5. 결과를 캐시에 저장
+                    st.session_state.query_cache[query] = result_content
+                    
+                    st.markdown(result_content.replace("$", "\$"))
+            # --- 캐시 구현 완료 ---
 
     except Exception as e:
         st.error(f"문서를 로드하거나 처리하는 중 오류가 발생했습니다: {e}")
