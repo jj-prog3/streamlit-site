@@ -92,7 +92,7 @@ def load_cloudflare_docs(api_key):
     )
     
     # Cloudflare 개발자 문서 sitemap 및 AI 제품 필터
-    sitemap_url = "https.developers.cloudflare.com/sitemap.xml"
+    sitemap_url = "https://developers.cloudflare.com/sitemap.xml"
     filter_urls = [
         "https.developers.cloudflare.com/ai-gateway/",
         "https.developers.cloudflare.com/vectorize/",
