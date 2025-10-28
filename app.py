@@ -110,11 +110,14 @@ def load_cloudflare_docs(api_key):
         st.error("문서를 로드하거나 파싱할 수 없습니다. 사이트맵 URL을 확인하거나 나중에 다시 시도하세요.")
         st.stop()
     
-    # OpenAI 임베딩 설정 (토큰 한도 초과 오류 방지)
+    # --- 오류 수정 (토큰 한도 초과) ---
+    # chunk_size는 한 번에 API로 보내는 *문서의 수*입니다.
+    # 1000개 문서는 토큰 한도를 초과하므로, 100개로 대폭 줄입니다.
     embeddings = OpenAIEmbeddings(
         openai_api_key=api_key,
-        chunk_size=1000  # 1000개 문서 단위로 나누어 API 요청
+        chunk_size=100  # 1000개에서 100개로 변경
     )
+    # --- 오류 수정 완료 ---
     
     # 벡터 저장소 생성
     vector_store = FAISS.from_documents(filtered_docs, embeddings) 
