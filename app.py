@@ -155,7 +155,6 @@ with st.sidebar:
     st.markdown(
         "--- \n"
         "[View on GitHub](https://github.com/jj-prog3/streamlit-site)" 
-        jj-prog3/streamlit-site
     )
 
 # API 키가 입력되었을 때만 앱 로직 실행
