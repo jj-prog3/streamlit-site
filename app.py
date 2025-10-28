@@ -99,18 +99,25 @@ def load_cloudflare_docs(api_key):
     
     docs = loader.load_and_split(text_splitter=splitter)
 
-    # docs 리스트에서 page_content가 비어 있거나 공백만 있는 문서를 제거합니다.
     filtered_docs = [doc for doc in docs if doc.page_content and doc.page_content.strip()]
     
     if not filtered_docs:
         # 필터링 후 문서가 하나도 없으면 오류를 발생시키고 앱을 중지합니다.
         st.error("문서를 로드하거나 파싱할 수 없습니다. 사이트맵 URL을 확인하거나 나중에 다시 시도하세요.")
         st.stop()
-    # --- 오류 수정 완료 ---
+
 
     
     # OpenAI 임베딩 및 FAISS 벡터 저장소 생성 (API 키 사용)
-    embeddings = OpenAIEmbeddings(openai_api_key=api_key)
+    
+    # --- 오류 수정 (BadRequestError - 토큰 한도 초과) ---
+    # chunk_size를 설정하여 단일 API 요청의 토큰 수가 한도를 넘지 않도록 
+    # 임베딩 요청을 더 작은 배치로 나눕니다. (기본값 2048이 너무 컸음)
+    embeddings = OpenAIEmbeddings(
+        openai_api_key=api_key,
+        chunk_size=1000  # 1000개 문서 단위로 나누어 API 요청
+    )
+    # --- 오류 수정 완료 ---
     
     # 필터링된 'filtered_docs' 리스트를 사용하여 벡터 저장소를 생성합니다.
     vector_store = FAISS.from_documents(filtered_docs, embeddings) 
@@ -144,7 +151,7 @@ with st.sidebar:
     # 깃허브 링크
     st.markdown(
         "--- \n"
-        "[View on GitHub](https://github.com/YOUR_USERNAME/YOUR_REPO)" # TODO: 실제 깃허브 레포지토리 주소로 변경하세요.
+        "[View on GitHub](https://github.com/jj-prog3/streamlit-site)" 
     )
 
 # API 키가 입력되었을 때만 앱 로직 실행
