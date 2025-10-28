@@ -7,3 +7,4 @@ langchain-text-splitters
 faiss-cpu
 beautifulsoup4
 tiktoken
+lxml
