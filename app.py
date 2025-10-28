@@ -71,15 +71,19 @@ def parse_page(soup):
     )
 
 # Cloudflare AI 문서 로드 및 색인 생성 함수
-@st.cache_data(show_spinner="Cloudflare AI 문서 로드 중...")
+# --- 결정적인 수정 ---
+# 이 데코레이터가 @st.cache_data가 아닌 @st.cache_resource여야 합니다.
+# VectorStoreRetriever는 직렬화(serialize)할 수 없는 "리소스"입니다.
+@st.cache_resource(show_spinner="Cloudflare AI 문서 로드 중...")
 def load_cloudflare_docs(api_key):
+# --- 수정 완료 ---
     """
     Cloudflare AI 제품군(AI Gateway, Vectorize, Workers AI)의 문서를 로드하고
     FAISS 벡터 저장소로 변환하여 리트리버를 반환합니다.
     """
     splitter = RecursiveCharacterTextSplitter.from_tiktoken_encoder( 
-        chunk_size=500,
-        chunk_overlap=100,
+        chunk_size=1000,
+        chunk_overlap=200,
     )
     
     # Cloudflare 개발자 문서 sitemap 및 AI 제품 필터
@@ -99,27 +103,20 @@ def load_cloudflare_docs(api_key):
     
     docs = loader.load_and_split(text_splitter=splitter)
 
+    # 빈 문서 필터링 (BadRequestError 방지)
     filtered_docs = [doc for doc in docs if doc.page_content and doc.page_content.strip()]
     
     if not filtered_docs:
-        # 필터링 후 문서가 하나도 없으면 오류를 발생시키고 앱을 중지합니다.
         st.error("문서를 로드하거나 파싱할 수 없습니다. 사이트맵 URL을 확인하거나 나중에 다시 시도하세요.")
         st.stop()
-
-
     
-    # OpenAI 임베딩 및 FAISS 벡터 저장소 생성 (API 키 사용)
-    
-    # --- 오류 수정 (BadRequestError - 토큰 한도 초과) ---
-    # chunk_size를 설정하여 단일 API 요청의 토큰 수가 한도를 넘지 않도록 
-    # 임베딩 요청을 더 작은 배치로 나눕니다. (기본값 2048이 너무 컸음)
+    # OpenAI 임베딩 설정 (토큰 한도 초과 오류 방지)
     embeddings = OpenAIEmbeddings(
         openai_api_key=api_key,
         chunk_size=1000  # 1000개 문서 단위로 나누어 API 요청
     )
-    # --- 오류 수정 완료 ---
     
-    # 필터링된 'filtered_docs' 리스트를 사용하여 벡터 저장소를 생성합니다.
+    # 벡터 저장소 생성
     vector_store = FAISS.from_documents(filtered_docs, embeddings) 
     return vector_store.as_retriever()
 
@@ -176,7 +173,7 @@ if api_key:
                         {"question": question, "context": doc.page_content}
                     ).content,
                     "source": doc.metadata["source"],
-                    "date": doc.metadata.get("lastmod", "N/A"), # 'lastmod'가 없을 경우 대비
+                    "date": doc.metadata.get("lastmod", "N_A"), # 'lastmod'가 없을 경우 대비
                 }
                 for doc in docs
             ],
@@ -202,7 +199,8 @@ if api_key:
 
     # 4. 문서 로드 (캐시됨)
     try:
-        retriever = load_cloudflare_docs(api_key)
+        # 이 함수는 이제 @st.cache_resource를 사용합니다.
+        retriever = load_cloudflare_docs(api_key) 
         
         # 5. 사용자 질문 입력
         query = st.text_input("Cloudflare AI 문서에 대해 질문하세요:")
@@ -224,8 +222,6 @@ if api_key:
                 st.markdown(result.content.replace("$", "\$"))
 
     except Exception as e:
-        # load_cloudflare_docs에서 st.stop()이 호출되면 이 코드는 실행되지 않을 수 있지만,
-        # 임베딩 생성 중 다른 예외 발생 시를 대비해 처리합니다.
         st.error(f"문서를 로드하거나 처리하는 중 오류가 발생했습니다: {e}")
         st.warning("API 키가 유효한지, 크레딧이 남아있는지 확인하세요.")
 
