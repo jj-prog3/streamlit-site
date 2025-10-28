@@ -1,10 +1,10 @@
 from langchain_community.document_loaders import SitemapLoader
-from langchain_core.runnables import RunnableLambda, RunnablePassthrough # 수정된 부분
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_core.runnables import RunnableLambda, RunnablePassthrough
+from langchain_text_splitters import RecursiveCharacterTextSplitter 
 from langchain_community.vectorstores import FAISS
 from langchain_openai import OpenAIEmbeddings
 from langchain_openai import ChatOpenAI
-from langchain_core.prompts import ChatPromptTemplate # 수정된 부분
+from langchain_core.prompts import ChatPromptTemplate
 import streamlit as st
 import os
 
@@ -77,7 +77,7 @@ def load_cloudflare_docs(api_key):
     Cloudflare AI 제품군(AI Gateway, Vectorize, Workers AI)의 문서를 로드하고
     FAISS 벡터 저장소로 변환하여 리트리버를 반환합니다.
     """
-    splitter = RecursiveCharacterTextSplitter.from_tiktoken_encoder(
+    splitter = RecursiveCharacterTextSplitter.from_tiktoken_encoder( # 이 함수는 이제 import가 올바르게 작동합니다.
         chunk_size=1000,
         chunk_overlap=200,
     )
@@ -205,5 +205,5 @@ if api_key:
 
 # API 키가 입력되지 않았을 경우 안내 메시지
 else:
-    st.info("시작하려면 사이드B에 OpenAI API 키를 입력하세요.")
+    st.info("시작하려면 사이드바에 OpenAI API 키를 입력하세요.")
 
