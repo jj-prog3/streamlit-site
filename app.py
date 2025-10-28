@@ -78,8 +78,8 @@ def load_cloudflare_docs(api_key):
     FAISS 벡터 저장소로 변환하여 리트리버를 반환합니다.
     """
     splitter = RecursiveCharacterTextSplitter.from_tiktoken_encoder( 
-        chunk_size=1000,
-        chunk_overlap=200,
+        chunk_size=500,
+        chunk_overlap=100,
     )
     
     # Cloudflare 개발자 문서 sitemap 및 AI 제품 필터
