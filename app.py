@@ -1,10 +1,10 @@
 from langchain_community.document_loaders import SitemapLoader
-from langchain.schema.runnable import RunnableLambda, RunnablePassthrough
+from langchain_core.runnables import RunnableLambda, RunnablePassthrough # 수정된 부분
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import FAISS
 from langchain_openai import OpenAIEmbeddings
 from langchain_openai import ChatOpenAI
-from langchain.prompts import ChatPromptTemplate
+from langchain_core.prompts import ChatPromptTemplate # 수정된 부분
 import streamlit as st
 import os
 
@@ -132,7 +132,7 @@ with st.sidebar:
     # 깃허브 링크
     st.markdown(
         "--- \n"
-        "[View on GitHub](https://github.com/jj-prog3/streamlit-site)"
+        "[View on GitHub](https://github.com/jj-prog3/streamlit-site)" 
     )
 
 # API 키가 입력되었을 때만 앱 로직 실행
@@ -205,4 +205,5 @@ if api_key:
 
 # API 키가 입력되지 않았을 경우 안내 메시지
 else:
-    st.info("시작하려면 사이드바에 OpenAI API 키를 입력하세요.")
+    st.info("시작하려면 사이드B에 OpenAI API 키를 입력하세요.")
+
