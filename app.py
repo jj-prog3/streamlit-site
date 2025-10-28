@@ -91,13 +91,14 @@ def load_cloudflare_docs(api_key):
         chunk_overlap=200,
     )
     
-    # Cloudflare 개발자 문서 sitemap 및 AI 제품 필터
+    # --- 오류 수정 (Invalid URL) ---
     sitemap_url = "https://developers.cloudflare.com/sitemap.xml"
     filter_urls = [
-        "https.developers.cloudflare.com/ai-gateway/",
-        "https.developers.cloudflare.com/vectorize/",
-        "https.developers.cloudflare.com/workers-ai/",
+        "https://developers.cloudflare.com/ai-gateway/",
+        "https://developers.cloudflare.com/vectorize/",
+        "https://developers.cloudflare.com/workers-ai/",
     ]
+    # --- 오류 수정 완료 ---
 
     loader = SitemapLoader(
         sitemap_url,
@@ -118,7 +119,7 @@ def load_cloudflare_docs(api_key):
     # OpenAI 임베딩 설정 (토큰 한도 초과 오류 방지)
     embeddings = OpenAIEmbeddings(
         openai_api_key=api_key,
-        chunk_size=100  # 1000개에서 100개로 변경
+        chunk_size=100
     )
     
     # 벡터 저장소 생성
@@ -153,7 +154,8 @@ with st.sidebar:
     # 깃허브 링크
     st.markdown(
         "--- \n"
-        "[View on GitHub](https.github.com/jj-prog3/streamlit-site)" 
+        "[View on GitHub](https://github.com/jj-prog3/streamlit-site)" 
+        jj-prog3/streamlit-site
     )
 
 # API 키가 입력되었을 때만 앱 로직 실행
@@ -255,4 +257,3 @@ if api_key:
 # API 키가 입력되지 않았을 경우 안내 메시지
 else:
     st.info("시작하려면 사이드바에 OpenAI API 키를 입력하세요.")
-
